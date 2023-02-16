@@ -1,0 +1,52 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Unit\Listener;
+
+use App\Events\LessonWatched;
+use App\Models\User;
+use Database\Seeders\AchievementSeeder;
+use Database\Seeders\BadgeSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
+use Tests\TestCase;
+
+/**
+ * @author  Aldi Arief <aldiarief598@gmail.com>
+ */
+class EvaluateLessonWatchedAchievementTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function testSuccess(): void
+    {
+        $this->seed([
+            AchievementSeeder::class,
+            BadgeSeeder::class,
+        ]);
+
+        Mail::fake();
+
+        /** @var User $user */
+        $user = User::factory()->create([
+            'lessons_watched' => 5,
+        ]);
+
+        event(new LessonWatched($user));
+
+        $this->assertDatabaseCount('user_achievements', 2);
+        $this->assertDatabaseHas('user_achievements', [
+            'user_id' => $user->getKey(),
+        ]);
+
+        $this->assertDatabaseCount('user_badges', 1);
+        $this->assertDatabaseHas('user_badges', [
+            'user_id' => $user->getKey(),
+        ]);
+
+        $user->refresh();
+
+        $this->assertNotNull($user->currentBadge);
+    }
+}
